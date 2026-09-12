@@ -1,0 +1,75 @@
+.TH FSX 8 "September 2026" "fsx 1.0.0" "System Administration"
+.SH NAME
+fsx \- standalone Unix filesystem, imaging, cloning, and partition toolkit
+.SH SYNOPSIS
+.B fsx info
+DEVICE
+.br
+.B fsx probe
+DEVICE
+.br
+.B fsx capabilities
+DEVICE
+.br
+.B fsx check
+DEVICE [--progress=MODE]
+.br
+.B fsx check metadata
+DEVICE [--quick] [--progress=MODE]
+.br
+.B fsx check deep
+DEVICE [--progress=MODE]
+.br
+.B fsx resize
+DEVICE SIZE [--journal=FILE] --write [--allow-block-device] [--progress=MODE]
+.br
+.B fsx grow
+DEVICE SIZE --write [--allow-block-device] [--progress=MODE]
+.br
+.B fsx partition list
+DISK
+.br
+.B fsx partition sync
+DISK INDEX FILESYSTEM --write [--journal=FILE] [--allow-block-device]
+.br
+.B fsx scrub
+DEVICE [SIZE] [--passes=N] [--chunk=SIZE] [--progress=MODE]
+.br
+.B fsx clone
+SOURCE TARGET --write [--create-file] [--chunk=SIZE] [--allow-block-device] [--progress=MODE]
+.br
+.B fsx image create
+SOURCE FILE [--chunk=SIZE] [--allow-live-source] [--progress=MODE]
+.br
+.B fsx image verify
+FILE [--progress=MODE]
+.br
+.B fsx image restore
+FILE TARGET --write [--create-file] [--allow-block-device] [--progress=MODE]
+.br
+.B fsx journal verify
+FILE
+.SH DESCRIPTION
+fsx is a standalone storage toolkit with its own block I/O, filesystem parsers, conservative ext mutation engine, transaction journal, GPT/MBR engine, raw scrub/clone operations, and FSXIMG1 imaging implementation. Implemented runtime operations do not shell out to traditional filesystem or partition utilities.
+.SH PROGRESS
+MODE is auto, live, plain or none. Live output redraws a fixed ASCII panel in place instead of continuously scrolling the terminal. Redirected output becomes line-oriented.
+.SH WRITE SAFETY
+Real block-device mutation requires explicit write intent and explicit block-device opt-in where applicable. fsx refuses known mounted, swap, held, or otherwise active devices on supported platforms. Destructive operations fail closed when required invariants cannot be established. There is no unsafe-fast mode.
+.SH FILESYSTEM SUPPORT
+The ext2/3/4 backend includes metadata/deep checking, ownership analysis, counter repair, label tuning, verified extent relocation and conservative grow/shrink mutation for documented layouts. FAT12/16/32 and exFAT are read/check-only. XFS validates geometry, redundant allocation-group superblocks and v5 CRC32C. NTFS validates boot redundancy and MFT/MFTMirr fixups. Btrfs validates redundant superblock mirrors and their configured checksum algorithm. ISO9660 validates descriptor and root geometry. BSD UFS1/UFS2 validates canonical superblock geometry. These backends are read-only in 1.0.
+.SH RESIZE
+The supported ext shrink pipeline journals relocation intent, reserves destination allocation, copies and flushes data, rereads and verifies CRC32C, switches exact owner metadata, verifies the switch, releases the source, repairs supported checksum/counter metadata and verifies the filesystem before optional partition synchronization.
+.PP
+fsx 1.0 refuses targets that remove ext block groups and require inode-number relocation. It also refuses unsupported meta_bg/bigalloc destructive layouts. These refusals cannot be bypassed with an unsafe flag.
+.SH PARTITIONS
+GPT parsing validates redundant headers and partition arrays. GPT mutation writes the backup side first, flushes, writes the primary side, then rereads and verifies both. Partition synchronization never shortens a containing partition before the filesystem is already smaller and verified. MBR mutation requires an explicit sector-0 undo backup.
+.SH SCRUB AND CLONE
+Scrub performs bounded parallel reads and deterministic CRC32C. Multiple passes detect unstable readback. Clone performs bounded parallel positional I/O, flushes the destination, and performs a complete post-flush read-back verification by default.
+.SH IMAGING
+FSXIMG1 stores checksummed chunk records and payloads, elides all-zero chunk payloads, and uses checksummed header/footer records. Creation publishes a completed image atomically after fsync and also fsyncs the parent directory. Restore verifies records before writing, flushes the destination, then performs a complete read-back verification pass.
+.SH TRANSACTIONS
+The transaction journal uses two independent 4096-byte headers and CRC32C-protected records. Journal publication is atomic. Semantic validation checks transaction ordering in addition to per-record CRCs. Long operations use checkpoint-aware cancellation/recovery states.
+.SH EXIT STATUS
+0 success; 1 usage or invalid argument; 2 runtime or I/O failure; 3 corruption detected; 6 unsupported operation; 7 safety refusal.
+.SH FILES
+See docs/SAFETY.md, docs/VALIDATION.md, docs/IMAGE_FORMAT.md and docs/RELEASE_NOTES.md in the source distribution.
