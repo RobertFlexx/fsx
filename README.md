@@ -322,7 +322,23 @@ For shrink operations, the useful number is not just "old size minus new size". 
 fsx benchmark /dev/nvme0n1p1 4GiB
 ```
 
-## Building
+## Installing
+
+From a release archive or repository checkout, run:
+
+```sh
+./install.sh
+```
+
+On Linux x86-64 this verifies and installs the bundled static binary. On other
+Unix-like systems it builds a native release binary from source. The default
+prefix is `/usr/local`; use `--prefix DIR` to change it. Run
+`./install.sh --help` for dynamic-binary, source-build, and packaging options.
+
+The installer also installs the `fsx(8)` manual page. It uses `sudo` only when
+the destination is not writable by the current user.
+
+### Building manually
 
 FSX needs a C++20 compiler and CMake.
 
